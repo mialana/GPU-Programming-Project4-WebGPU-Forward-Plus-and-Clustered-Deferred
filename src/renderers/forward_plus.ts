@@ -1,6 +1,6 @@
-import * as renderer from '../renderer';
-import * as shaders from '../shaders/shaders';
-import { Stage } from '../stage/stage';
+import * as renderer from "../renderer";
+import * as shaders from "../shaders/shaders";
+import { Stage } from "../stage/stage";
 
 export class ForwardPlusRenderer extends renderer.Renderer {
     // TODO-2: add layouts, pipelines, textures, etc. needed for Forward+ here
