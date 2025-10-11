@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --open",
-    "build": "vite build && cp -r scenes/ dist/"
+    "build": "vite build && cp -r scenes/ dist/",
+    "deploy": "npm run build && npx wrangler pages deploy"
   },
   "devDependencies": {
     "@types/dat.gui": "^0.7.13",
