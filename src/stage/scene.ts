@@ -8,7 +8,7 @@ In particular, it is known to not work if there is a mesh with no material.
 import { registerLoaders, load } from '@loaders.gl/core';
 import { GLTFLoader, GLTFWithBuffers, GLTFMesh, GLTFMeshPrimitive, GLTFMaterial, GLTFSampler } from '@loaders.gl/gltf';
 import { ImageLoader } from '@loaders.gl/images';
-import { Mat4, mat4 } from 'wgpu-matrix';
+import { mat4 } from 'wgpu-matrix';
 import { device, materialBindGroupLayout, modelBindGroupLayout } from '../renderer';
 
 export function setupLoaders() {
@@ -81,7 +81,7 @@ export class Primitive {
         const indicesByteOffset = (indicesAccessor.byteOffset ?? 0)
             + (indicesBufferView.byteOffset ?? 0)
             + indicesBuffer.byteOffset;
-        let indicesArray: Uint32Array;
+        let indicesArray: Uint32Array<ArrayBuffer>;
         // hardcoding webgl constants, very silly
         switch (indicesDataType) {
             case 0x1403: // UNSIGNED_SHORT
@@ -152,7 +152,7 @@ export class Node {
     parent: Node | undefined;
     children: Set<Node> = new Set<Node>();
 
-    transform: Mat4 = mat4.identity();
+    transform: Float32Array<ArrayBuffer> = mat4.identity();
     modelMatUniformBuffer!: GPUBuffer;
     modelBindGroup!: GPUBindGroup;
     mesh: Mesh | undefined;
