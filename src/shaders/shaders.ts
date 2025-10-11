@@ -36,7 +36,14 @@ export const constants = {
 // =================================
 
 function evalShaderRaw(raw: string) {
-    return eval("`" + raw.replaceAll("${", "${constants.") + "`");
+    // replace every `${foo}` with constants.foo
+    return raw.replace(/\$\{(\w+)\}/g, (_, key) => {
+        const val = (constants as any)[key];
+        if (val === undefined) {
+            throw new Error(`Unknown shader constant “${key}”`);
+        }
+        return String(val);
+    });
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
