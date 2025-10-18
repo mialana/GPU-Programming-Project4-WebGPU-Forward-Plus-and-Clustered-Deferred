@@ -17,6 +17,8 @@ setupLoaders();
 let scene = new Scene();
 await scene.loadGltf("./scenes/sponza/Sponza.gltf");
 
+let paused = false;
+
 const camera = new Camera();
 const lights = new Lights(camera);
 
@@ -46,6 +48,7 @@ function setRenderer(mode: string) {
             break;
         case renderModes.forwardPlus:
             renderer = new ForwardPlusRenderer(stage);
+            ``;
             break;
         case renderModes.clusteredDeferred:
             renderer = new ClusteredDeferredRenderer(stage);
@@ -59,10 +62,23 @@ const renderModes = {
     clusteredDeferred: "clustered deferred",
 };
 let renderModeController = gui.add(
-    { mode: renderModes.naive },
+    { mode: renderModes.forwardPlus },
     "mode",
     renderModes,
 );
 renderModeController.onChange(setRenderer);
 
-setRenderer(renderModeController.getValue());
+setRenderer(renderModeController.getValue())
+
+/* to pause during development */
+function toggleRenderer() {
+    if (paused) {
+        setRenderer(renderModeController.getValue());
+    } else {
+        renderer?.stop();
+    }
+
+    paused = !paused;
+}
+
+gui.add({ paused: paused }, "paused").onChange(toggleRenderer);

@@ -12,6 +12,16 @@ struct LightSet {
 
 // TODO-2: you may want to create a ClusterSet struct similar to LightSet
 
+struct Cluster {
+    pos: vec3f,
+    color: vec3f
+}
+
+struct ClusterSet {
+    numClusters: u32,
+    clusters: array<Cluster>
+}
+
 struct CameraUniforms {
     // TODO-1.3: add an entry for the view proj mat (of type mat4x4f)
     viewProjMat: mat4x4f
