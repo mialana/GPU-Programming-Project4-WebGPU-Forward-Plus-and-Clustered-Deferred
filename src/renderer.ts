@@ -3,8 +3,6 @@ import { Lights } from "./stage/lights";
 import { Camera } from "./stage/camera";
 import { Stage } from "./stage/stage";
 
-import { Vec3, vec3 } from "wgpu-matrix";
-
 export var canvas: HTMLCanvasElement;
 export var canvasFormat: GPUTextureFormat;
 export var context: GPUCanvasContext;
@@ -16,6 +14,17 @@ export const fovYDegrees = 45;
 
 export var modelBindGroupLayout: GPUBindGroupLayout;
 export var materialBindGroupLayout: GPUBindGroupLayout;
+
+import { divUp } from "./math_util";
+
+export interface ClusterParams {
+    numX: number; // num clusters in X
+    numY: number; // num clusters in Y
+    numZ: number; // num clusters in Z
+    clusterSize: number;
+    canvasSizeX: number;
+    canvasSizeY: number;
+}
 
 // CHECKITOUT: this function initializes WebGPU and also creates some bind group layouts shared by all the renderers
 export async function initWebGPU() {
@@ -84,16 +93,45 @@ export async function initWebGPU() {
     });
 }
 
-export function getNumClustersPerDimension(clusterSize: number) : Vec3 {
+export function getMinClusterSize() {
     if (!canvas) {
         initWebGPU();
     }
 
-    return vec3.create(
-        Math.ceil(canvas.width / clusterSize),
-        Math.ceil(canvas.height / 16),
-        1,
+    const devicePixelRatio = window.devicePixelRatio;
+    canvas.width = canvas.clientWidth * devicePixelRatio;
+    canvas.height = canvas.clientHeight * devicePixelRatio;
+
+    const area = canvas.width * canvas.height;
+
+    if (area < 800 * 600) return 16; // mobile? screen
+    if (area < 1920 * 1080) return 32; // HD
+    if (area < 2560 * 1440) return 64; // monitor
+    return 128;
+}
+
+export function getClusterParams(
+    clusterSize: number,
+): ClusterParams {
+    if (!canvas) {
+        initWebGPU();
+    }
+
+    // trick to only have one global clusterSize
+    // user doesn't have to know shhh
+    const numClustersZ = Math.max(
+        8,
+        Math.round(28 * Math.pow(32 / clusterSize, 0.5)),
     );
+
+    return {
+        numX: divUp(canvas.width, clusterSize),
+        numY: divUp(canvas.height, clusterSize),
+        numZ: numClustersZ,
+        clusterSize: clusterSize,
+        canvasSizeX: canvas.width,
+        canvasSizeY: canvas.height
+    };
 }
 
 export const vertexBufferLayout: GPUVertexBufferLayout = {

@@ -7,3 +7,7 @@ export function toRadians(degrees: number) {
 export function toDegrees(radians: number) {
     return (radians * 180) / Math.PI;
 }
+
+export function divUp(dividend: number, divisor: number): number {
+    return Math.floor((dividend + divisor - 1) / dividend);
+}

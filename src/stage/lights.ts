@@ -5,7 +5,7 @@ import * as shaders from "../shaders/shaders";
 import { Camera } from "./camera";
 
 // one u32 for numLights in Cluster struct
-const numIntsPerCluster = shaders.constants.maxClusterToLightRatio + 1;
+const numIntsPerCluster = shaders.constants.maxClusterToLightRatio;
 const numBytesPerCluster = numIntsPerCluster * 4; // u32 has 4 bytes
 
 // h in [0, 1]
@@ -111,8 +111,8 @@ export class Lights {
 
         // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
 
-        const dims = Camera.clusterDims;
-        const numClustersTotal = dims[0] * dims[1] * dims[2];
+        const params = Camera.clusterParams;
+        const numClustersTotal = params.numX * params.numY * params.numZ;
 
         const clusterToLightsBufSize = numBytesPerCluster * numClustersTotal;
 
@@ -142,7 +142,13 @@ export class Lights {
                     binding: 2,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: "uniform" },
-                }
+                },
+                {
+                    // cluster uniforms
+                    binding: 3,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: "uniform" },
+                },
             ],
         });
 
@@ -161,6 +167,10 @@ export class Lights {
                 {
                     binding: 2,
                     resource: { buffer: this.camera.uniformsBuffer },
+                },
+                {
+                    binding: 3,
+                    resource: { buffer: this.camera.clusterUniformsBuffer },
                 },
             ],
         });
@@ -219,11 +229,12 @@ export class Lights {
 
         computePass.setBindGroup(0, this.clusteringComputeBindGroup);
 
-        const workgroupCount = Math.ceil(
-            this.numLights / shaders.constants.clusteringWorkgroupSize,
+        const workgroupSize = shaders.constants.clusteringWorkgroupSize;
+        computePass.dispatchWorkgroups(
+            Math.ceil(Camera.clusterParams.numX / workgroupSize),
+            Math.ceil(Camera.clusterParams.numY / workgroupSize),
+            Math.ceil(Camera.clusterParams.numZ / workgroupSize),
         );
-
-        computePass.dispatchWorkgroups(workgroupCount);
 
         computePass.end();
     }

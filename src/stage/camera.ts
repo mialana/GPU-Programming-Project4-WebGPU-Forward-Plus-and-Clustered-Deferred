@@ -1,10 +1,23 @@
 import { Mat4, mat4, Vec3, vec3, Vec2, vec2 } from "wgpu-matrix";
 import { toRadians } from "../math_util";
-import { device, canvas, fovYDegrees, aspectRatio, getNumClustersPerDimension } from "../renderer";
+import {
+    device,
+    canvas,
+    fovYDegrees,
+    aspectRatio,
+    getClusterParams,
+    ClusterParams,
+    getMinClusterSize,
+} from "../renderer";
 
 class CameraUniforms {
-    readonly buffer = new ArrayBuffer((16 + 16 + 16 + 16 + 2 + 3) * 4);
-    private readonly floatView = new Float32Array(this.buffer);
+    readonly floatBuffer = new ArrayBuffer((16 + 16 + 2 + 1 + 1) * 4);
+    private readonly floatView = new Float32Array(this.floatBuffer);
+
+    // all i32 (no 16-bit in wgsl)
+    readonly padding = 2;
+    readonly intBuffer = new ArrayBuffer((6 + this.padding) * 4);
+    private readonly intView = new Int32Array(this.intBuffer);
 
     set viewProjMat(mat: Float32Array) {
         // TODO-1.1: set the first 16 elements of `this.floatView` to the input `mat`
@@ -21,27 +34,27 @@ class CameraUniforms {
         }
     }
 
-    set projMat(mat: Float32Array) {
-        for (let i = 0; i < 16; i++) {
-            this.floatView[32 + i] = mat[i];
-        }
-    }
-
-    set invProjMat(mat: Float32Array) {
-        for (let i = 0; i < 16; i++) {
-            this.floatView[48 + i] = mat[i];
-        }
-    }
-
     set nearFar(nearFar: Vec2) {
-        this.floatView[64] = nearFar[0];
-        this.floatView[65] = nearFar[1];
+        this.floatView[32] = nearFar[0];
+        this.floatView[33] = nearFar[1];
     }
 
-    set clusterDims(clusterDims: Vec3) {
-        this.floatView[66] = clusterDims[0];
-        this.floatView[67] = clusterDims[1];
-        this.floatView[68] = clusterDims[2];
+    set frustumSlopeX(slopeX: number) {
+        this.floatView[34] = slopeX;
+    }
+
+    set frustumSlopeY(slopeY: number) {
+        this.floatView[35] = slopeY;
+    }
+
+    // params that are needed on the device
+    set dev_clusterParams(params: ClusterParams) {
+        this.intView[36] = params.numX; // numX
+        this.intView[37] = params.numY; // numY
+        this.intView[38] = params.numZ; // numY
+        this.intView[39] = params.clusterSize; // clusterSize
+        this.intView[40] = params.canvasSizeX; // currCanvasX
+        this.intView[41] = params.canvasSizeY; // currCanvasY
     }
 }
 
@@ -50,7 +63,6 @@ export class Camera {
     uniformsBuffer: GPUBuffer;
 
     projMat: Mat4 = mat4.create();
-    invProjMat: Mat4 = mat4.create();
 
     cameraPos: Vec3 = vec3.create(-7, 2, 0);
     cameraFront: Vec3 = vec3.create(0, 0, -1);
@@ -62,10 +74,14 @@ export class Camera {
     sensitivity: number = 0.15;
 
     static readonly nearPlane = 0.1;
-    static farPlane = 1000;
+    static readonly farPlane = 1000;
 
-    static clusterSize = 16; // in case i want to expose this later
-    static clusterDims = vec3.create(16, 16, 16);
+    static fauxFarPlane = 30; // fake far plane for relevant light searching
+
+    clusterUniformsBuffer: GPUBuffer;
+
+    static clusterSize = getMinClusterSize(); // in case i want to expose this later
+    static clusterParams: ClusterParams = getClusterParams(Camera.clusterSize);
 
     keys: { [key: string]: boolean } = {};
 
@@ -76,11 +92,23 @@ export class Camera {
         //
         // note that you can add more variables (e.g. inverse proj matrix) to this buffer in later parts of the assignment
         this.uniformsBuffer = device.createBuffer({
-            size: this.uniforms.buffer.byteLength,
+            size: this.uniforms.floatBuffer.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
-        this.updateNearFar(Camera.farPlane); // call on init
+        this.clusterUniformsBuffer = device.createBuffer({
+            size: this.uniforms.intBuffer.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+
+        this.projMat = mat4.perspective(
+            toRadians(fovYDegrees),
+            aspectRatio,
+            Camera.nearPlane,
+            Camera.farPlane,
+        );
+
+        Camera.updateClusterSize(Camera.clusterSize);
 
         this.rotateCamera(0, 0); // set initial camera vectors
 
@@ -97,24 +125,17 @@ export class Camera {
         canvas.addEventListener("mousemove", (event) =>
             this.onMouseMove(event),
         );
+
+        console.log(Camera.clusterParams);
     }
 
-    public static updateClusterSize(clusterSize: number)
-    {
+    public static updateClusterSize(clusterSize: number) {
         Camera.clusterSize = clusterSize;
-        Camera.clusterDims = getNumClustersPerDimension(clusterSize);
+        Camera.clusterParams = getClusterParams(clusterSize);
     }
 
-    public updateNearFar(farPlane: number)
-    {
-        Camera.farPlane = farPlane;
-        this.projMat = mat4.perspective(
-            toRadians(fovYDegrees),
-            aspectRatio,
-            Camera.nearPlane,
-            Camera.farPlane,
-        );
-        this.invProjMat = mat4.inverse(this.projMat);
+    public updateFauxFarPlane(fakie: number) {
+        Camera.fauxFarPlane = fakie; // muahaha
     }
 
     private onKeyEvent(event: KeyboardEvent, down: boolean) {
@@ -206,22 +227,30 @@ export class Camera {
         );
         const viewMat = mat4.lookAt(this.cameraPos, lookPos, [0, 1, 0]);
         const viewProjMat = mat4.mul(this.projMat, viewMat);
-    
+
         // TODO-1.1: set `this.uniforms.viewProjMat` to the newly calculated view proj mat
         this.uniforms.viewProjMat = viewProjMat;
 
         // TODO-2: write to extra buffers needed for light clustering here
-
         this.uniforms.viewMat = viewMat;
-        this.uniforms.projMat = this.projMat;
-        this.uniforms.invProjMat = this.invProjMat;
 
-        this.uniforms.nearFar = vec2.create(Camera.nearPlane, Camera.farPlane);
+        this.uniforms.nearFar = vec2.create(
+            Camera.nearPlane,
+            Camera.fauxFarPlane,
+        );
 
-        this.uniforms.clusterDims = Camera.clusterDims;
+        const slopeY = Math.tan(0.5 * toRadians(fovYDegrees));
+        this.uniforms.frustumSlopeY = slopeY;
+        this.uniforms.frustumSlopeX = aspectRatio * slopeY;
+
+        this.uniforms.dev_clusterParams = Camera.clusterParams;
 
         // TODO-1.1: upload `this.uniforms.buffer` (host side) to `this.uniformsBuffer` (device side)
         // check `lights.ts` for examples of using `device.queue.writeBuffer()`
-        device.queue.writeBuffer(this.uniformsBuffer, 0, this.uniforms.buffer);
+        device.queue.writeBuffer(
+            this.uniformsBuffer,
+            0,
+            this.uniforms.floatBuffer,
+        );
     }
 }

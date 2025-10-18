@@ -30,7 +30,7 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    clusteringWorkgroupSize: 128,
+    clusteringWorkgroupSize: 4, // each dimension is 4 (honestly could be lower)
 
     maxClusterToLightRatio: 256, // TODO: how to optimize?
 

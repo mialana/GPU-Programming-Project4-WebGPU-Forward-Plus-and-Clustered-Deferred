@@ -1,7 +1,7 @@
 import Stats from "stats.js";
 import { GUI } from "dat.gui";
 
-import { initWebGPU, Renderer } from "./renderer";
+import { initWebGPU, Renderer, getMinClusterSize } from "./renderer";
 import { NaiveRenderer } from "./renderers/naive";
 import { ForwardPlusRenderer } from "./renderers/forward_plus";
 import { ClusteredDeferredRenderer } from "./renderers/clustered_deferred";
@@ -19,8 +19,10 @@ await scene.loadGltf("./scenes/sponza/Sponza.gltf");
 
 let paused = false;
 
-const camera = new Camera();
-const lights = new Lights(camera);
+let camera = new Camera();
+let lights = new Lights(camera);
+
+let minClusterSize = Camera.clusterSize; // min cluster size
 
 const stats = new Stats();
 stats.showPanel(0);
@@ -35,9 +37,22 @@ gui.add(lights, "numLights")
         lights.updateLightSetUniformNumLights();
     });
 
-const stage = new Stage(scene, lights, camera, stats);
+let stage = new Stage(scene, lights, camera, stats);
 
 var renderer: Renderer | undefined;
+
+// TODO: memory leaks
+async function reset() {
+    await initWebGPU();
+
+    scene = new Scene();
+    await scene.loadGltf("./scenes/sponza/Sponza.gltf");
+
+    camera = new Camera();
+    lights = new Lights(camera);
+
+    stage = new Stage(scene, lights, camera, stats);
+}
 
 function setRenderer(mode: string) {
     renderer?.stop();
@@ -73,9 +88,9 @@ setRenderer(renderModeController.getValue());
 /* to pause during development */
 function toggleRenderer(val: boolean) {
     if (val) {
-        setRenderer(renderModeController.getValue());
-    } else {
         renderer?.stop();
+    } else {
+        setRenderer(renderModeController.getValue());
     }
 
     paused = val;
@@ -83,18 +98,43 @@ function toggleRenderer(val: boolean) {
 
 gui.add({ paused: paused }, "paused").onChange(toggleRenderer);
 
-// far plane gui slider
-gui.add({ farPlane: Camera.farPlane }, "farPlane", 100, 5000).onFinishChange(
-    camera.updateNearFar,
+// faux far plane gui slider (user-facing term, no amy brain)
+gui.add(
+    { searchCutoff: Camera.fauxFarPlane },
+    "searchCutoff",
+    5,
+    500,
+).onFinishChange(camera.updateFauxFarPlane);
+
+let clusterSizeController = gui.add(
+    { clusterSize: Camera.clusterSize },
+    "clusterSize",
+    minClusterSize,
+    256,
 );
 
 // cluster size gui slider
-function changeClusterSize(val: number)
-{
+async function changeClusterSize(val: number, resized: boolean = false) {
     renderer?.stop();
 
-    Camera.updateClusterSize(val); // update global cluster size
+    if (resized) {
+        minClusterSize = getMinClusterSize();
+
+        Camera.updateClusterSize(minClusterSize); // update global cluster size
+        
+        clusterSizeController.min(minClusterSize);
+        clusterSizeController.setValue(minClusterSize); // set gui vars
+
+        await reset(); // reset now that static Cam values have been updated
+    } else {
+        Camera.updateClusterSize(val); // update global cluster size
+    }
+
     setRenderer(renderModeController.getValue()); // create new renderer with updated cluster size so that buffer sizes are reset
 }
 
-gui.add({ clusterSize: Camera.clusterSize }, "clusterSize", 8, 64).onFinishChange(changeClusterSize);
+clusterSizeController.onFinishChange(changeClusterSize);
+
+window.addEventListener("resize", () =>
+    changeClusterSize(Camera.clusterSize, true),
+); // listen for window resizing
