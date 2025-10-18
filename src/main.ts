@@ -68,17 +68,33 @@ let renderModeController = gui.add(
 );
 renderModeController.onChange(setRenderer);
 
-setRenderer(renderModeController.getValue())
+setRenderer(renderModeController.getValue());
 
 /* to pause during development */
-function toggleRenderer() {
-    if (paused) {
+function toggleRenderer(val: boolean) {
+    if (val) {
         setRenderer(renderModeController.getValue());
     } else {
         renderer?.stop();
     }
 
-    paused = !paused;
+    paused = val;
 }
 
 gui.add({ paused: paused }, "paused").onChange(toggleRenderer);
+
+// far plane gui slider
+gui.add({ farPlane: Camera.farPlane }, "farPlane", 100, 5000).onFinishChange(
+    camera.updateNearFar,
+);
+
+// cluster size gui slider
+function changeClusterSize(val: number)
+{
+    renderer?.stop();
+
+    Camera.updateClusterSize(val); // update global cluster size
+    setRenderer(renderModeController.getValue()); // create new renderer with updated cluster size so that buffer sizes are reset
+}
+
+gui.add({ clusterSize: Camera.clusterSize }, "clusterSize", 8, 64).onFinishChange(changeClusterSize);

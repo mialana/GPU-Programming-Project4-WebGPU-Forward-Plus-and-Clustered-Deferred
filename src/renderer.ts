@@ -3,6 +3,8 @@ import { Lights } from "./stage/lights";
 import { Camera } from "./stage/camera";
 import { Stage } from "./stage/stage";
 
+import { Vec3, vec3 } from "wgpu-matrix";
+
 export var canvas: HTMLCanvasElement;
 export var canvasFormat: GPUTextureFormat;
 export var context: GPUCanvasContext;
@@ -80,6 +82,18 @@ export async function initWebGPU() {
             },
         ],
     });
+}
+
+export function getNumClustersPerDimension(clusterSize: number) : Vec3 {
+    if (!canvas) {
+        initWebGPU();
+    }
+
+    return vec3.create(
+        Math.ceil(canvas.width / clusterSize),
+        Math.ceil(canvas.height / 16),
+        1,
+    );
 }
 
 export const vertexBufferLayout: GPUVertexBufferLayout = {

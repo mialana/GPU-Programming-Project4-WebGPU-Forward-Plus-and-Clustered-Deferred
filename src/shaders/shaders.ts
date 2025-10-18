@@ -32,6 +32,8 @@ export const constants = {
 
     clusteringWorkgroupSize: 128,
 
+    maxClusterToLightRatio: 256, // TODO: how to optimize?
+
     lightRadius: 2,
 };
 
