@@ -26,6 +26,11 @@ export interface ClusterParams {
     canvasSizeY: number;
 }
 
+// mobile first development? idek should never be used anyhow
+export const defaultClusterParams: ClusterParams = {
+    numX: 16, numY: 16, numZ: 16, clusterSize: 32, canvasSizeX: 800, canvasSizeY: 600
+}
+
 // CHECKITOUT: this function initializes WebGPU and also creates some bind group layouts shared by all the renderers
 export async function initWebGPU() {
     canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;

@@ -1,9 +1,9 @@
 // TODO-2: implement the light clustering compute shader
 
-@group(0) @binding(0) var<storage, read_write> lightSet: LightSet;
-@group(0) @binding(1) var<storage, read_write> clusterSet: ClusterSet;
-@group(0) @binding(2) var<uniform> camUnifs: CameraUniforms;
-@group(0) @binding(3) var<uniform> clusterUnifs: ClusterUniforms;
+@group(${bindGroup_scene}) @binding(0) var<uniform> camUnifs: CameraUniforms;
+@group(${bindGroup_scene}) @binding(1) var<storage, read> lightSet: LightSet;
+@group(${bindGroup_scene}) @binding(2) var<storage, read_write> clusterSet: ClusterSet;
+@group(${bindGroup_scene}) @binding(3) var<uniform> clusterUnifs: ClusterUniforms;
 
 // ------------------------------------
 // Calculating cluster bounds:
@@ -36,12 +36,13 @@ fn toSS(x_idx: u32, y_idx: u32) -> vec2f {
 fn toUV(ss: vec2f) -> vec2f {
     let canvasSize = vec2f(f32(clusterUnifs.canvasSizeX), f32(clusterUnifs.canvasSizeY));
 
-    return ss / canvasSize;
+    return vec2f(ss.x / f32(clusterUnifs.canvasSizeX), ss.y / f32(clusterUnifs.canvasSizeY));
 }
 
 // ndc space
 fn toNDC(uv: vec2f) -> vec2f {
-    return 2.0 * uv - 1.0;
+    // flip y for ndc
+    return 2.0 * vec2f(uv.x, 1 - uv.y) - 1.0;
 }
 
 fn sphereIntersectsAABB(center: vec3f, radius: f32, bmin: vec3f, bmax: vec3f) -> bool {
@@ -57,9 +58,9 @@ fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
         return;
     }
 
-    let idx = (clusterUnifs.numClustersX * clusterUnifs.numClustersY * globalIdx.z) + (clusterUnifs.numClustersX * globalIdx.y) + globalIdx.x;
+    let idx: u32 = (clusterUnifs.numClustersX * clusterUnifs.numClustersY * globalIdx.z) + (clusterUnifs.numClustersX * globalIdx.y) + globalIdx.x;
 
-    let stepZ: f32 = pow(camUnifs.farClip / camUnifs.nearClip, 1.0 / f32(clusterUnifs.numClustersZ));
+    let stepZ: f32 = pow(camUnifs.searchCutoff / camUnifs.nearClip, 1.0 / f32(clusterUnifs.numClustersZ));
 
     // min and max xyz bounds for all relevant spaces
     let ssMin: vec2f = toSS(globalIdx.x, globalIdx.y);
@@ -97,4 +98,5 @@ fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
             numLights += 1u;
         }
     }
+    clusterSet.clusters[idx].numLights = numLights;
 }

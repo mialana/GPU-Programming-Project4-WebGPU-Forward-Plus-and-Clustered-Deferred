@@ -18,41 +18,10 @@ export class ForwardPlusRenderer extends renderer.Renderer {
         super(stage);
 
         // TODO-2: initialize layouts, pipelines, textures, etc. needed for Forward+ here
-        this.sceneUniformsBindGroupLayout =
-            renderer.device.createBindGroupLayout({
-                label: "scene uniforms bind group layout",
-                entries: [
-                    {
-                        // lightSet
-                        binding: 1,
-                        visibility: GPUShaderStage.FRAGMENT,
-                        buffer: { type: "read-only-storage" },
-                    },
-                    {
-                        binding: 0,
-                        visibility: GPUShaderStage.VERTEX,
-                        buffer: { type: "uniform" },
-                    },
-                ],
-            });
+        // reuse bind group setups
+        this.sceneUniformsBindGroupLayout = stage.lights.clusteringComputeBindGroupLayout;
 
-        this.sceneUniformsBindGroup = renderer.device.createBindGroup({
-            label: "scene uniforms bind group",
-            layout: this.sceneUniformsBindGroupLayout,
-            entries: [
-                // TODO-1.2: add an entry for camera uniforms at binding 0
-                // you can access the camera using `this.camera`
-                // if you run into TypeScript errors, you're probably trying to upload the host buffer instead
-                {
-                    binding: 1,
-                    resource: { buffer: this.lights.lightSetStorageBuffer },
-                },
-                {
-                    binding: 0,
-                    resource: { buffer: this.camera.uniformsBuffer },
-                },
-            ],
-        });
+        this.sceneUniformsBindGroup = stage.lights.clusteringComputeBindGroup;
 
         this.depthTexture = renderer.device.createTexture({
             size: [renderer.canvas.width, renderer.canvas.height],

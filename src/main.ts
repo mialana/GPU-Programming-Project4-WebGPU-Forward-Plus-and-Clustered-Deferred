@@ -43,6 +43,7 @@ var renderer: Renderer | undefined;
 
 // TODO: memory leaks
 async function reset() {
+    console.log("resetting...");
     await initWebGPU();
 
     scene = new Scene();
@@ -98,13 +99,12 @@ function toggleRenderer(val: boolean) {
 
 gui.add({ paused: paused }, "paused").onChange(toggleRenderer);
 
+toggleRenderer(paused);
+
 // faux far plane gui slider (user-facing term, no amy brain)
-gui.add(
-    { searchCutoff: Camera.fauxFarPlane },
-    "searchCutoff",
-    5,
-    500,
-).onFinishChange(camera.updateFauxFarPlane);
+gui.add({ searchCutoff: Camera.fauxFarPlane }, "searchCutoff", 5, 500).onChange(
+    camera.updateFauxFarPlane,
+);
 
 let clusterSizeController = gui.add(
     { clusterSize: Camera.clusterSize },
@@ -121,7 +121,7 @@ async function changeClusterSize(val: number, resized: boolean = false) {
         minClusterSize = getMinClusterSize();
 
         Camera.updateClusterSize(minClusterSize); // update global cluster size
-        
+
         clusterSizeController.min(minClusterSize);
         clusterSizeController.setValue(minClusterSize); // set gui vars
 
@@ -138,3 +138,5 @@ clusterSizeController.onFinishChange(changeClusterSize);
 window.addEventListener("resize", () =>
     changeClusterSize(Camera.clusterSize, true),
 ); // listen for window resizing
+
+changeClusterSize(Camera.clusterSize, true);

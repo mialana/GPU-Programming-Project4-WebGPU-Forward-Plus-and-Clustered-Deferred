@@ -7,7 +7,7 @@ import {
     aspectRatio,
     getClusterParams,
     ClusterParams,
-    getMinClusterSize,
+    defaultClusterParams,
 } from "../renderer";
 
 class CameraUniforms {
@@ -17,7 +17,7 @@ class CameraUniforms {
     // all i32 (no 16-bit in wgsl)
     readonly padding = 2;
     readonly intBuffer = new ArrayBuffer((6 + this.padding) * 4);
-    private readonly intView = new Int32Array(this.intBuffer);
+    readonly intView = new Int32Array(this.intBuffer);
 
     set viewProjMat(mat: Float32Array) {
         // TODO-1.1: set the first 16 elements of `this.floatView` to the input `mat`
@@ -49,12 +49,12 @@ class CameraUniforms {
 
     // params that are needed on the device
     set dev_clusterParams(params: ClusterParams) {
-        this.intView[36] = params.numX; // numX
-        this.intView[37] = params.numY; // numY
-        this.intView[38] = params.numZ; // numY
-        this.intView[39] = params.clusterSize; // clusterSize
-        this.intView[40] = params.canvasSizeX; // currCanvasX
-        this.intView[41] = params.canvasSizeY; // currCanvasY
+        this.intView[0] = params.numX; // numX
+        this.intView[1] = params.numY; // numY
+        this.intView[2] = params.numZ; // numY
+        this.intView[3] = params.clusterSize; // clusterSize
+        this.intView[4] = params.canvasSizeX; // currCanvasX
+        this.intView[5] = params.canvasSizeY; // currCanvasY
     }
 }
 
@@ -76,12 +76,12 @@ export class Camera {
     static readonly nearPlane = 0.1;
     static readonly farPlane = 1000;
 
-    static fauxFarPlane = 30; // fake far plane for relevant light searching
+    static fauxFarPlane = 15; // fake far plane for relevant light searching
 
     clusterUniformsBuffer: GPUBuffer;
 
-    static clusterSize = getMinClusterSize(); // in case i want to expose this later
-    static clusterParams: ClusterParams = getClusterParams(Camera.clusterSize);
+    static clusterSize = 32; // in case i want to expose this later
+    static clusterParams: ClusterParams = defaultClusterParams;
 
     keys: { [key: string]: boolean } = {};
 
@@ -251,6 +251,12 @@ export class Camera {
             this.uniformsBuffer,
             0,
             this.uniforms.floatBuffer,
+        );
+
+        device.queue.writeBuffer(
+            this.clusterUniformsBuffer,
+            0,
+            this.uniforms.intBuffer,
         );
     }
 }

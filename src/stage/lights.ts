@@ -3,6 +3,7 @@ import { device } from "../renderer";
 
 import * as shaders from "../shaders/shaders";
 import { Camera } from "./camera";
+import { divUp } from "../math_util";
 
 // one u32 for numLights in Cluster struct
 const numIntsPerCluster = shaders.constants.maxClusterToLightRatio;
@@ -119,34 +120,40 @@ export class Lights {
         this.clusterToLightsBuf = device.createBuffer({
             label: "clusters",
             size: clusterToLightsBufSize,
-            usage: GPUBufferUsage.STORAGE,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
         });
 
         this.clusteringComputeBindGroupLayout = device.createBindGroupLayout({
             label: "clustering compute bind group layout",
             entries: [
                 {
-                    // lightSet
+                    // camera uniforms
                     binding: 0,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: "storage" },
+                    visibility:
+                        GPUShaderStage.COMPUTE |
+                        GPUShaderStage.VERTEX |
+                        GPUShaderStage.FRAGMENT,
+                    buffer: { type: "uniform" },
+                },
+                {
+                    // lightSet
+                    binding: 1,
+                    visibility:
+                        GPUShaderStage.COMPUTE | GPUShaderStage.FRAGMENT,
+                    buffer: { type: "read-only-storage" },
                 },
                 {
                     // clusterSet
-                    binding: 1,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: "storage" },
-                },
-                {
-                    // camera uniforms
                     binding: 2,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: "uniform" },
+                    visibility:
+                        GPUShaderStage.COMPUTE | GPUShaderStage.FRAGMENT,
+                    buffer: { type: "storage" },
                 },
                 {
                     // cluster uniforms
                     binding: 3,
-                    visibility: GPUShaderStage.COMPUTE,
+                    visibility:
+                        GPUShaderStage.COMPUTE | GPUShaderStage.FRAGMENT,
                     buffer: { type: "uniform" },
                 },
             ],
@@ -158,15 +165,15 @@ export class Lights {
             entries: [
                 {
                     binding: 0,
-                    resource: { buffer: this.lightSetStorageBuffer },
+                    resource: { buffer: this.camera.uniformsBuffer },
                 },
                 {
                     binding: 1,
-                    resource: { buffer: this.clusterToLightsBuf },
+                    resource: { buffer: this.lightSetStorageBuffer },
                 },
                 {
                     binding: 2,
-                    resource: { buffer: this.camera.uniformsBuffer },
+                    resource: { buffer: this.clusterToLightsBuf },
                 },
                 {
                     binding: 3,
@@ -222,18 +229,21 @@ export class Lights {
     doLightClustering(encoder: GPUCommandEncoder) {
         // TODO-2: run the light clustering compute pass(es) here
         // implementing clustering here allows for reusing the code in both Forward+ and Clustered Deferred
-
         const computePass = encoder.beginComputePass();
 
         computePass.setPipeline(this.clusteringComputePipeline);
 
-        computePass.setBindGroup(0, this.clusteringComputeBindGroup);
+        computePass.setBindGroup(
+            shaders.constants.bindGroup_scene,
+            this.clusteringComputeBindGroup,
+        );
 
         const workgroupSize = shaders.constants.clusteringWorkgroupSize;
+
         computePass.dispatchWorkgroups(
-            Math.ceil(Camera.clusterParams.numX / workgroupSize),
-            Math.ceil(Camera.clusterParams.numY / workgroupSize),
-            Math.ceil(Camera.clusterParams.numZ / workgroupSize),
+            divUp(Camera.clusterParams.numX, workgroupSize),
+            divUp(Camera.clusterParams.numY, workgroupSize),
+            divUp(Camera.clusterParams.numZ, workgroupSize),
         );
 
         computePass.end();
@@ -253,17 +263,14 @@ export class Lights {
         const computePass = encoder.beginComputePass();
         computePass.setPipeline(this.moveLightsComputePipeline);
 
-        computePass.setBindGroup(0, this.moveLightsComputeBindGroup);
+        computePass.setBindGroup(
+            shaders.constants.bindGroup_scene,
+            this.moveLightsComputeBindGroup,
+        );
 
         const workgroupCount = Math.ceil(
             this.numLights / shaders.constants.moveLightsWorkgroupSize,
         );
-        computePass.dispatchWorkgroups(workgroupCount);
-
-        computePass.setPipeline(this.clusteringComputePipeline);
-
-        computePass.setBindGroup(0, this.clusteringComputeBindGroup);
-
         computePass.dispatchWorkgroups(workgroupCount);
 
         computePass.end();

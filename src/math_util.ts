@@ -9,5 +9,5 @@ export function toDegrees(radians: number) {
 }
 
 export function divUp(dividend: number, divisor: number): number {
-    return Math.floor((dividend + divisor - 1) / dividend);
+    return Math.floor((dividend + divisor - 1) / divisor);
 }

@@ -27,7 +27,7 @@ struct CameraUniforms {
     viewProjMat: mat4x4f,
     viewMat: mat4x4f,
     nearClip: f32,
-    farClip: f32,
+    searchCutoff: f32,
     frustumSlopeX: f32,
     frustumSlopeY: f32,
 }
