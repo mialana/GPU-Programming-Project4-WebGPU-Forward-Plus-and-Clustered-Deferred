@@ -147,14 +147,10 @@ export class Camera {
 
     public static updateExposureOffset(exposureOffset: number) {
         Camera.exposureOffset = exposureOffset;
-
-        console.log(Camera.exposureOffset);
     }
 
     public static updateLightRadius(lightRadius: number) {
         Camera.lightSearchRadius = lightRadius;
-
-        console.log(Camera.lightSearchRadius);
     }
 
     public updateFauxFarPlane(fakie: number) {
