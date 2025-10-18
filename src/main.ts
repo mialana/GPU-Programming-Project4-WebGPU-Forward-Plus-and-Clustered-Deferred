@@ -33,8 +33,8 @@ gui.add(lights, "numLights")
     .min(1)
     .max(Lights.maxNumLights)
     .step(1)
-    .onChange(() => {
-        lights.updateLightSetUniformNumLights();
+    .onChange((val) => {
+        lights.updateLightSetUniformNumLights(val);
     });
 
 let stage = new Stage(scene, lights, camera, stats);

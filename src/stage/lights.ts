@@ -19,8 +19,8 @@ function hueToRgb(h: number) {
 export class Lights {
     private camera: Camera;
 
-    numLights = 500;
-    static readonly maxNumLights = 5000;
+    numLights = 1000;
+    static readonly maxNumLights = 100000;
     static readonly numFloatsPerLight = 8; // vec3f is aligned at 16 byte boundaries
 
     static readonly lightIntensity = 0.1;
@@ -52,7 +52,7 @@ export class Lights {
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         this.populateLightsBuffer();
-        this.updateLightSetUniformNumLights();
+        this.updateLightSetUniformNumLights(this.numLights);
 
         this.timeUniformBuffer = device.createBuffer({
             label: "time uniform",
@@ -218,7 +218,8 @@ export class Lights {
         );
     }
 
-    updateLightSetUniformNumLights() {
+    updateLightSetUniformNumLights(val: number) {
+        this.numLights = val;
         device.queue.writeBuffer(
             this.lightSetStorageBuffer,
             0,
