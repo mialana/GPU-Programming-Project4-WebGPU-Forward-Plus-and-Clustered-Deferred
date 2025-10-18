@@ -16,6 +16,12 @@ struct FragmentInput
     @builtin(position) fragPos: vec4f,
 }
 
+// Simple hash to get repeatable pseudorandom noise
+fn hash13(p: vec3f) -> f32 {
+    let dotp = dot(p, vec3f(127.1, 311.7, 74.7));
+    return fract(sin(dotp) * 43758.5453);
+}
+
 @fragment
 fn main(in: FragmentInput) -> @location(0) vec4f
 {
@@ -37,26 +43,25 @@ fn main(in: FragmentInput) -> @location(0) vec4f
     if (viewSpace_z < camUnifs.nearClip || viewSpace_z > camUnifs.searchCutoff) 
     {
         // skip lighting
-        return vec4f(0.0);
+        return vec4f(albedo.rgb * camUnifs.exposureOffset, 1.0);
     }
 
     // TODO: is this wasteful?
     let stepZ: f32 = pow(camUnifs.searchCutoff / camUnifs.nearClip, 1.0 / f32(clusterUnifs.numClustersZ));
+
+    // let jitter = (hash13(vec3f(in.fragPos.xy, 0.0)) - 0.5) * 0.1; // TODO: apply slight jitter?
+
     let z_clusterSpace: f32 = log(viewSpace_z / camUnifs.nearClip) / log(stepZ);
     let z_clusterIdx: u32 = u32(clamp(floor(z_clusterSpace), 0.0, f32(clusterUnifs.numClustersZ - 1u)));
 
     let clusterIdx_3d = vec3u(xy_clusterIdx.x, xy_clusterIdx.y, z_clusterIdx);
     let clusterIdx_1d: u32 = (clusterUnifs.numClustersX * clusterUnifs.numClustersY * z_clusterIdx) + (clusterUnifs.numClustersX * xy_clusterIdx.y) + xy_clusterIdx.x;
 
-    let cluster: Cluster = clusterSet.clusters[clusterIdx_1d];
-    let clusterNumLights: u32 = cluster.numLights;
-    let clusterLights: array<u32, ${maxClusterToLightRatio}> = cluster.lights;
+    var totalLightContrib = vec3f(camUnifs.exposureOffset);
 
-    var totalLightContrib = vec3f(0.0);
-
-    for (var i = 0u; i < clusterNumLights; i++) {
-        let light: Light = lightSet.lights[clusterLights[i]];
-        totalLightContrib += calculateLightContrib(light, pos, normalize(nor));
+    for (var i = 0u; i < clusterSet.clusters[clusterIdx_1d].numLights; i++) {
+        let light: Light = lightSet.lights[clusterSet.clusters[clusterIdx_1d].lights[i]];
+        totalLightContrib += calculateLightContrib(light, pos, normalize(nor), clusterUnifs.lightSearchRadius);
     }
 
     var finalColor = albedo * totalLightContrib;

@@ -62,7 +62,7 @@ fn main(in: FragmentInput) -> @location(0) vec4f
     if (viewSpace_z < camUnifs.nearClip || viewSpace_z > camUnifs.searchCutoff) 
     {
         // skip lighting
-        return vec4f(0.0);
+        return vec4f(diffuseColor.rgb * camUnifs.exposureOffset, 1.0);
     }
 
     // TODO: is this wasteful?
@@ -77,11 +77,11 @@ fn main(in: FragmentInput) -> @location(0) vec4f
     let clusterNumLights: u32 = cluster.numLights;
     let clusterLights: array<u32, ${maxClusterToLightRatio}> = cluster.lights;
 
-    var totalLightContrib = vec3f(0.0);
+    var totalLightContrib = vec3f(camUnifs.exposureOffset);
 
-    for (var i = 0u; i < clusterNumLights; i++) {
-        let light: Light = lightSet.lights[clusterLights[i]];
-        totalLightContrib += calculateLightContrib(light, in.pos, normalize(in.nor));
+    for (var i = 0u; i < clusterSet.clusters[clusterIdx_1d].numLights; i++) {
+        let light: Light = lightSet.lights[clusterSet.clusters[clusterIdx_1d].lights[i]];
+        totalLightContrib += calculateLightContrib(light, in.pos, normalize(in.nor), clusterUnifs.lightSearchRadius);
     }
 
     var finalColor = diffuseColor.rgb * totalLightContrib;

@@ -120,7 +120,7 @@ export class Lights {
         this.clusterToLightsBuf = device.createBuffer({
             label: "clusters",
             size: clusterToLightsBufSize,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            usage: GPUBufferUsage.STORAGE
         });
 
         this.clusteringComputeBindGroupLayout = device.createBindGroupLayout({

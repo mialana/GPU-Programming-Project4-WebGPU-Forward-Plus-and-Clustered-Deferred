@@ -30,6 +30,7 @@ struct CameraUniforms {
     searchCutoff: f32,
     frustumSlopeX: f32,
     frustumSlopeY: f32,
+    exposureOffset: f32
 }
 
 // all u32 (no 16-bit in wgsl)
@@ -39,18 +40,19 @@ struct ClusterUniforms {
     numClustersZ: u32,
     clusterSizeXY: u32,
     canvasSizeX: u32,
-    canvasSizeY: u32
+    canvasSizeY: u32,
+    lightSearchRadius: u32
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius
-fn rangeAttenuation(distance: f32) -> f32 {
-    return clamp(1.f - pow(distance / ${lightRadius}, 4.f), 0.f, 1.f) / (distance * distance);
+fn rangeAttenuation(distance: f32, lightSearchRadius: f32) -> f32 {
+    return clamp(1.f - pow(distance / lightSearchRadius, 4.f), 0.f, 1.f) / (distance * distance);
 }
 
-fn calculateLightContrib(light: Light, posWorld: vec3f, nor: vec3f) -> vec3f {
+fn calculateLightContrib(light: Light, posWorld: vec3f, nor: vec3f, lightSearchRadius: u32) -> vec3f {
     let vecToLight = light.pos - posWorld;
     let distToLight = length(vecToLight);
 
     let lambert = max(dot(nor, normalize(vecToLight)), 0.f);
-    return light.color * lambert * rangeAttenuation(distToLight);
+    return light.color * lambert * rangeAttenuation(distToLight, f32(lightSearchRadius));
 }

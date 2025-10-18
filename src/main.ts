@@ -37,6 +37,18 @@ gui.add(lights, "numLights")
         lights.updateLightSetUniformNumLights(val);
     });
 
+gui.add({lightSearchRadius: Camera.lightSearchRadius}, "lightSearchRadius")
+    .min(1)
+    .max(10)
+    .step(1)
+    .onChange(Camera.updateLightRadius);
+
+gui.add({exposureOffset: Camera.exposureOffset}, "exposureOffset")
+    .min(0)
+    .max(1)
+    .step(0.05)
+    .onChange(Camera.updateExposureOffset);
+
 let stage = new Stage(scene, lights, camera, stats);
 
 var renderer: Renderer | undefined;

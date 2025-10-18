@@ -92,7 +92,7 @@ fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
         let currLight: Light = lightSet.lights[i];
         let vsLightPos: vec3f = (camUnifs.viewMat * vec4f(currLight.pos, 1.0)).xyz;
 
-        if (sphereIntersectsAABB(vsLightPos, ${lightRadius}, bboxMin, bboxMax))
+        if (sphereIntersectsAABB(vsLightPos, f32(clusterUnifs.lightSearchRadius), bboxMin, bboxMax))
         {
             clusterSet.clusters[idx].lights[numLights] = i;
             numLights += 1u;

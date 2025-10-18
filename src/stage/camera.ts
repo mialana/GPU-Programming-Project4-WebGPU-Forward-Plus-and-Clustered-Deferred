@@ -11,12 +11,13 @@ import {
 } from "../renderer";
 
 class CameraUniforms {
-    readonly floatBuffer = new ArrayBuffer((16 + 16 + 2 + 1 + 1) * 4);
+    readonly floatPadding = 3;
+    readonly floatBuffer = new ArrayBuffer((16 + 16 + 2 + 1 + 1 + 1 + this.floatPadding) * 4);
     private readonly floatView = new Float32Array(this.floatBuffer);
 
     // all i32 (no 16-bit in wgsl)
-    readonly padding = 2;
-    readonly intBuffer = new ArrayBuffer((6 + this.padding) * 4);
+    readonly intPadding = 1;
+    readonly intBuffer = new ArrayBuffer((7 + this.intPadding) * 4);
     readonly intView = new Int32Array(this.intBuffer);
 
     set viewProjMat(mat: Float32Array) {
@@ -47,6 +48,11 @@ class CameraUniforms {
         this.floatView[35] = slopeY;
     }
 
+    set exposureOffset(exposureOffset: number)
+    {
+        this.floatView[36] = exposureOffset;
+    }
+
     // params that are needed on the device
     set dev_clusterParams(params: ClusterParams) {
         this.intView[0] = params.numX; // numX
@@ -55,6 +61,7 @@ class CameraUniforms {
         this.intView[3] = params.clusterSize; // clusterSize
         this.intView[4] = params.canvasSizeX; // currCanvasX
         this.intView[5] = params.canvasSizeY; // currCanvasY
+        this.intView[6] = Camera.lightSearchRadius;
     }
 }
 
@@ -73,6 +80,8 @@ export class Camera {
     moveSpeed: number = 0.004;
     sensitivity: number = 0.15;
 
+    static exposureOffset = 0.0;
+
     static readonly nearPlane = 0.1;
     static readonly farPlane = 1000;
 
@@ -80,8 +89,10 @@ export class Camera {
 
     clusterUniformsBuffer: GPUBuffer;
 
-    static clusterSize = 32; // in case i want to expose this later
+    static clusterSize = 32; // in case i want to expose this later (DONE)
     static clusterParams: ClusterParams = defaultClusterParams;
+
+    static lightSearchRadius = 2; 
 
     keys: { [key: string]: boolean } = {};
 
@@ -132,6 +143,18 @@ export class Camera {
         Camera.clusterParams = getClusterParams(clusterSize);
 
         console.log(Camera.clusterParams);
+    }
+
+    public static updateExposureOffset(exposureOffset: number) {
+        Camera.exposureOffset = exposureOffset;
+
+        console.log(Camera.exposureOffset);
+    }
+
+    public static updateLightRadius(lightRadius: number) {
+        Camera.lightSearchRadius = lightRadius;
+
+        console.log(Camera.lightSearchRadius);
     }
 
     public updateFauxFarPlane(fakie: number) {
@@ -238,6 +261,8 @@ export class Camera {
             Camera.nearPlane,
             Camera.fauxFarPlane,
         );
+
+        this.uniforms.exposureOffset = Camera.exposureOffset;
 
         const slopeY = Math.tan(0.5 * toRadians(fovYDegrees));
         this.uniforms.frustumSlopeY = slopeY;
