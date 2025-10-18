@@ -125,13 +125,13 @@ export class Camera {
         canvas.addEventListener("mousemove", (event) =>
             this.onMouseMove(event),
         );
-
-        console.log(Camera.clusterParams);
     }
 
     public static updateClusterSize(clusterSize: number) {
         Camera.clusterSize = clusterSize;
         Camera.clusterParams = getClusterParams(clusterSize);
+
+        console.log(Camera.clusterParams);
     }
 
     public updateFauxFarPlane(fakie: number) {

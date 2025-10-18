@@ -78,7 +78,7 @@ const renderModes = {
     clusteredDeferred: "clustered deferred",
 };
 let renderModeController = gui.add(
-    { mode: renderModes.forwardPlus },
+    { mode: renderModes.clusteredDeferred },
     "mode",
     renderModes,
 );
@@ -102,7 +102,7 @@ gui.add({ paused: paused }, "paused").onChange(toggleRenderer);
 toggleRenderer(paused);
 
 // faux far plane gui slider (user-facing term, no amy brain)
-gui.add({ searchCutoff: Camera.fauxFarPlane }, "searchCutoff", 5, 500).onChange(
+gui.add({ searchCutoff: Camera.fauxFarPlane }, "searchCutoff", 0, 100).onChange(
     camera.updateFauxFarPlane,
 );
 
